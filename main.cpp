@@ -63,8 +63,8 @@ public:
 
     // Registros que ficarão salvos no disco
     struct primary_key {
-        int label;
-        int ofsset;
+        int offset;
+        int prox_offset;
     } primary_key;
 
     // construtor
@@ -113,8 +113,10 @@ public:
     }
 
     // Insere um indice secundário na lista de indices secundarios
-    No* insere_indice_secundario(char *palavra, int offset){
+    No* insere_indice_secundario(char *palavra, int offset, int *contador){
         int resultado;
+        
+        *contador = 0;  // marcar a posição da palavra
 
         // Verifica se a lista de indices secundários existe
         if(indices_secundarios == NULL){
@@ -163,6 +165,8 @@ public:
                     no->prox = aux;
                     ant->prox = no;
                 }
+
+                (*contador)++;
             }
 
             // Palavra ainda não existe na lista de indices secundarios
@@ -176,21 +180,38 @@ public:
         }
     }
 
-    /*void insere_lista_invertida(int label, int offset){
-        rewind(fd);
-        int offset = 0;
-    }*/
+    void insere_lista_invertida(struct primary_key registro, int posicao){
+        //rewind(fd);
+
+        fseek(fd,0,SEEK_END);
+
+        printf("Proximos offsets: %d\n",registro.prox_offset);
+        
+        // insere no final do arquivo
+        if(registro.prox_offset == -1){
+            fwrite(&registro,sizeof(primary_key),1,fd);
+        }
+    }
 
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
-        // Adiciona na lista de índices secundários
+        // Adiciona palavra na lista de índices secundários
         No* resultado;
-        resultado = insere_indice_secundario(palavra, offset);
+        int posicao; // posição da palavra na lista de índices secundários
+        resultado = insere_indice_secundario(palavra, offset, &posicao);
 
-        //insere_lista_invertida(label,offset);
+        // primeira vez que a palavra aparece no texto
+        if(resultado->quantidade == 1){
+            primary_key.offset = resultado->offset;
+            primary_key.prox_offset = -1;
+        }
+        else {
+            primary_key.offset = offset;
+            primary_key.prox_offset = resultado->offset;
+        }
 
-        // Adiciona na lista invertida
-        // **** FAZER AQUI ****
+        // Adiciona offset da palavra na lista invertida
+        insere_lista_invertida(primary_key,posicao);
     }
 
     // realiza busca, retornando vetor de offsets que referenciam a palavra
