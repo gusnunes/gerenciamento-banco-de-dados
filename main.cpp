@@ -51,7 +51,7 @@ public:
     struct no{
         char *palavra;
         int offset;
-        int quantidade=0; // quantidade de vezes que achou a mesma palavra no texto
+        int quantidade; // quantidade de vezes que achou a mesma palavra no texto
 
         struct no *prox;
     }typedef No;
@@ -94,6 +94,8 @@ public:
         for(aux=indices_secundarios->head; aux!=NULL; aux=aux->prox){
             printf("Palavra: %s\n", aux->palavra); 
             printf("Offset: %d\n", aux->offset);
+            printf("Quantidade: %d\n",aux->quantidade);
+            printf("\n");
         }
     } 
 
@@ -114,7 +116,7 @@ public:
     No* insere_indice_secundario(char *palavra, int offset){
         int resultado;
 
-        // Verifica se a lista existe
+        // Verifica se a lista de indices secundários existe
         if(indices_secundarios == NULL){
             printf("Erro! A lista de indices secundarios nao existe.\n");
             return NULL;
@@ -127,14 +129,6 @@ public:
             if(indices_secundarios->head == NULL){
                 indices_secundarios->head = no;
                 no->prox = NULL;
-
-                // Armazena informações (palavra e offset) no nó
-                no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
-                strcpy(no->palavra, palavra);
-                no->offset = offset;
-                no->quantidade++;
-
-                return no;
             } 
             else { // Já existem elementos na lista
                 No *aux, *ant;
@@ -149,9 +143,11 @@ public:
                         break;
                     }
 
-                    // só um teste, para palavras repetidas
+                    // palavra já existe na lista de indices secundários
                     if(resultado == 0){
                         aux->quantidade++;
+                        free(no); // Esse nó não é inserido na lista
+                        return aux;
                     }
 
                     ant = aux; 
@@ -167,31 +163,31 @@ public:
                     no->prox = aux;
                     ant->prox = no;
                 }
-
-                no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
-                strcpy(no->palavra, palavra);
-                no->offset = offset;
-                return 1;
             }
+
+            // Palavra ainda não existe na lista de indices secundarios
+            // Armazena informações (palavra e offset) no novo nó
+            no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
+            strcpy(no->palavra, palavra);
+            no->offset = offset;
+            no->quantidade = 1;
+            
+            return no;
         }
     }
 
-
-    void insere_lista_invertida(int label, int offset){
+    /*void insere_lista_invertida(int label, int offset){
         rewind(fd);
         int offset = 0;
-
-    }
+    }*/
 
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
         // Adiciona na lista de índices secundários
-        int res;
+        No* resultado;
+        resultado = insere_indice_secundario(palavra, offset);
 
-        int label = res;
-        
-        res = insere_indice_secundario(palavra, offset);
-        insere_lista_invertida(label,offset);
+        //insere_lista_invertida(label,offset);
 
         // Adiciona na lista invertida
         // **** FAZER AQUI ****
@@ -240,9 +236,14 @@ int main(int argc, char** argv) {
 
         listaInvertida *lista = new listaInvertida();
         // ler palavras
-        while (!in.eof()) {
+        while(true){
             // ler palavra
             in >> palavra;
+            
+            // Modificamos para não ler a última palavra duas vezes
+            if(in.eof()){
+                break;
+            }
             
             // pegar offset
             offset = in.tellg();
@@ -259,8 +260,8 @@ int main(int argc, char** argv) {
                 if (contadorDePalavras % 1000 == 0) { printf(".");  fflush(stdout); }
             }
         }
-        in.close();
 
+        in.close();
         lista->imprime_lista_indices_secundarios();
         
         // agora que ja construimos o indice, podemos realizar buscas
