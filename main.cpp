@@ -11,11 +11,9 @@ Matheus Henrique Ferreira Protásio - 11521BCC020
 
 using namespace std;
 
-// palavra fica com caracteres minusculos
+// palavra fica com todos caracteres minusculos
 void toLower(char str[]){
-    int i;
-
-    for(i=0; str[i]!='\0'; i++){
+    for(int i=0; str[i]!='\0'; i++){
         //Verifica se é maiúscula
         if(str[i] >= 65 && str[i] <= 90){
             str[i] = str[i] + 32;
@@ -51,20 +49,22 @@ public:
     struct no{
         char *palavra;
         int offset;
-        int quantidade; // quantidade de vezes que achou a mesma palavra no texto
+        int posicao; // posicao da palavra na lista invertida
 
         struct no *prox;
-    }typedef No;
+    } typedef No;
 
     // Ponteiro para o primeiro nó da lista de índices secundários
     struct lista{
         struct no *head;
+        int indice; 
     } typedef Lista;
 
     // Registros que ficarão salvos no disco
     struct primary_key {
+        int primeira_pos;
         int offset;
-        int prox_offset;
+        int pos_prox_offset;
     } primary_key;
 
     // construtor
@@ -94,7 +94,6 @@ public:
         for(aux=indices_secundarios->head; aux!=NULL; aux=aux->prox){
             printf("Palavra: %s\n", aux->palavra); 
             printf("Offset: %d\n", aux->offset);
-            printf("Quantidade: %d\n",aux->quantidade);
             printf("\n");
         }
     } 
@@ -109,14 +108,14 @@ public:
         }
 
         lista->head = NULL;
+        lista->indice = 0;
+
         return lista;
     }
 
     // Insere um indice secundário na lista de indices secundarios
-    No* insere_indice_secundario(char *palavra, int offset, int *contador){
+    No* insere_indice_secundario(char *palavra){
         int resultado;
-        
-        *contador = 0;  // marcar a posição da palavra
 
         // Verifica se a lista de indices secundários existe
         if(indices_secundarios == NULL){
@@ -145,10 +144,9 @@ public:
                         break;
                     }
 
-                    // palavra já existe na lista de indices secundários
+                    // palavra já existe na lista de índices secundários
                     if(resultado == 0){
-                        aux->quantidade++;
-                        free(no); // Esse nó não é inserido na lista
+                        free(no); // Esse nó não será inserido na lista
                         return aux;
                     }
 
@@ -165,53 +163,58 @@ public:
                     no->prox = aux;
                     ant->prox = no;
                 }
-
-                (*contador)++;
             }
 
             // Palavra ainda não existe na lista de indices secundarios
             // Armazena informações (palavra e offset) no novo nó
             no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
             strcpy(no->palavra, palavra);
-            no->offset = offset;
-            no->quantidade = 1;
+            no->posicao = indices_secundarios->indice;
+            indices_secundarios->indice++;
             
             return no;
         }
     }
 
-    void insere_lista_invertida(struct primary_key registro, int posicao){
-        //rewind(fd);
+    void insere_lista_invertida(struct primary_key registro){
+        // Posicao da palavra no ARQUIVO da lista invertida
+        int pos_lista;
+        pos_lista = registro.primeira_pos * sizeof(primary_key);
 
-        fseek(fd,0,SEEK_END);
+        fseek(fd,pos_lista,SEEK_SET);
 
-        printf("Proximos offsets: %d\n",registro.prox_offset);
-        
-        // insere no final do arquivo
-        if(registro.prox_offset == -1){
-            fwrite(&registro,sizeof(primary_key),1,fd);
-        }
+        fwrite(&registro,sizeof(primary_key),1,fd);
     }
 
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
+        int indice_anterior;
+        
+        indice_anterior = indices_secundarios->indice;
+
         // Adiciona palavra na lista de índices secundários
         No* resultado;
-        int posicao; // posição da palavra na lista de índices secundários
-        resultado = insere_indice_secundario(palavra, offset, &posicao);
+        resultado = insere_indice_secundario(palavra);
 
-        // primeira vez que a palavra aparece no texto
-        if(resultado->quantidade == 1){
-            primary_key.offset = resultado->offset;
-            primary_key.prox_offset = -1;
+        // A palavra já existia na lista de índices secundários
+        if(indice_anterior == indices_secundarios->indice){
+            primary_key.primeira_pos = indices_secundarios->indice;
+            primary_key.offset = offset;
+            primary_key.pos_prox_offset = resultado->posicao; 
+
+            resultado->posicao = indices_secundarios->indice;
+            indices_secundarios->indice++; // atualiza o indice da lista
         }
         else {
+            primary_key.primeira_pos = resultado->posicao;
             primary_key.offset = offset;
-            primary_key.prox_offset = resultado->offset;
+            primary_key.pos_prox_offset = -1;
         }
 
+        resultado->offset = offset; // novo offset da palavra
+
         // Adiciona offset da palavra na lista invertida
-        insere_lista_invertida(primary_key,posicao);
+        insere_lista_invertida(primary_key);
     }
 
     // realiza busca, retornando vetor de offsets que referenciam a palavra
