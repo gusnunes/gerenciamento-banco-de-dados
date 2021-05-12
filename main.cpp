@@ -46,31 +46,29 @@ void imprimeLinha(int offset,FILE *f) {
 class listaInvertida {
 public:
     // Nó que representa um índice secundário
-    struct no{
+    struct no {
         char *palavra;
-        int offset;
         int posicao; // posicao da palavra na lista invertida
 
         struct no *prox;
     } typedef No;
 
     // Ponteiro para o primeiro nó da lista de índices secundários
-    struct lista{
+    struct lista {
         struct no *head;
-        int indice; 
+        int indice; // controla a posição que a palavra deve ser inserida na lista invertida
     } typedef Lista;
 
-    // Registros que ficarão salvos no disco
+    // Registros da lista invertida que ficarão salvos no disco
     struct primary_key {
-        int primeira_pos;
-        int offset;
-        int pos_prox_offset;
+        int primeira_pos; // primeira posição da palavra
+        int offset; // offset da palavra
+        int pos_prox_offset; // posição do próximo offset da palavra
     } primary_key;
 
     // construtor
     listaInvertida() {
         fd = fopen("lista_invertida.dat", "wb+");
-
         indices_secundarios = cria_indices_secundarios();
     }
     
@@ -92,8 +90,7 @@ public:
         printf("\n");
         
         for(aux=indices_secundarios->head; aux!=NULL; aux=aux->prox){
-            printf("Palavra: %s\n", aux->palavra); 
-            printf("Offset: %d\n", aux->offset);
+            printf("Palavra: %s\n", aux->palavra);
             printf("\n");
         }
     } 
@@ -181,22 +178,20 @@ public:
         int pos_lista;
         pos_lista = registro.primeira_pos * sizeof(primary_key);
 
-        fseek(fd,pos_lista,SEEK_SET);
-
-        fwrite(&registro,sizeof(primary_key),1,fd);
+        fseek(fd,pos_lista,SEEK_SET); // Move o ponteiro do arquivo para a posição
+        fwrite(&registro,sizeof(primary_key),1,fd); // Escreve o registro no arquivo
     }
 
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
         int indice_anterior;
-        
         indice_anterior = indices_secundarios->indice;
 
         // Adiciona palavra na lista de índices secundários
         No* resultado;
         resultado = insere_indice_secundario(palavra);
 
-        // A palavra já existia na lista de índices secundários
+        // A palavra JÁ existia na lista de índices secundários
         if(indice_anterior == indices_secundarios->indice){
             primary_key.primeira_pos = indices_secundarios->indice;
             primary_key.offset = offset;
@@ -205,13 +200,11 @@ public:
             resultado->posicao = indices_secundarios->indice;
             indices_secundarios->indice++; // atualiza o indice da lista
         }
-        else {
+        else { // Palavra ainda NÃO estava na lista de índices secundários
             primary_key.primeira_pos = resultado->posicao;
             primary_key.offset = offset;
-            primary_key.pos_prox_offset = -1;
+            primary_key.pos_prox_offset = -1; // a última posição sempre aponta para -1
         }
-
-        resultado->offset = offset; // novo offset da palavra
 
         // Adiciona offset da palavra na lista invertida
         insere_lista_invertida(primary_key);
