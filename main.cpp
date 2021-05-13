@@ -163,7 +163,7 @@ public:
             }
 
             // Palavra ainda não existe na lista de indices secundarios
-            // Armazena informações (palavra e offset) no novo nó
+            // Armazena informações (palavra e posição) no novo nó
             no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
             strcpy(no->palavra, palavra);
             no->posicao = indices_secundarios->indice;
@@ -212,21 +212,59 @@ public:
 
     // realiza busca, retornando vetor de offsets que referenciam a palavra
     int * busca(char *palavra, int *quantidade) {
-        // substituir pelo resultado da busca na lista invertida
-        quantidade[0] = 10;
-        int *offsets = new int[10];
-        int i = 0;
-        // exemplo: retornar os primeiros 10 offsets da palavra "terra"
-        offsets[i++] = 58;
-        offsets[i++] = 69;
-        offsets[i++] = 846;
-        offsets[i++] = 943;
-        offsets[i++] = 1083;
-        offsets[i++] = 1109;
-        offsets[i++] = 1569;
-        offsets[i++] = 1792;
-        offsets[i++] = 2041;
-        offsets[i++] = 2431;
+        int resultado, posicao, pos_lista;
+        int qtd_inicial, contador=0;
+        No *no;
+
+        if(indices_secundarios == NULL){
+            printf("Erro! A lista de indices secundarios nao existe.\n");
+            return NULL;
+        }
+        else {
+            No *aux = indices_secundarios->head;
+            no = aux;
+            // Percorre a lista de índices secundários para achar a palavra
+            while(aux != NULL){
+                resultado = strcmp(palavra,aux->palavra);
+                
+                // Palavra está na lista
+                if(resultado == 0){
+                    break;
+                }
+
+                aux = aux->prox;
+                no = aux;
+            }
+        }
+
+        // Achou a palavra, pega a primeira posição dela na lista invertida
+        if(no != NULL){
+            posicao = no->posicao;
+        }
+        else {
+            return NULL;
+        }
+    
+        qtd_inicial = 20; // valor inicial, caso precise mais, faz realloc
+        int *offsets = (int *)malloc(qtd_inicial * sizeof(int));
+
+        pos_lista = posicao * sizeof(primary_key);
+        fseek(fd,pos_lista,SEEK_SET);
+    
+        while(true){
+            fread(&primary_key,sizeof(primary_key),1,fd);
+            offsets[contador] = primary_key.offset;
+            contador++;
+
+            if(primary_key.pos_prox_offset == -1){
+                break;
+            }
+
+            pos_lista = primary_key.pos_prox_offset * sizeof(primary_key);
+            fseek(fd,pos_lista,SEEK_SET);
+        }
+
+        *quantidade = contador;
         return offsets;
     }
 private:
@@ -249,19 +287,12 @@ int main(int argc, char** argv) {
         char *palavra = new char[100];
         int offset, contadorDePalavras = 0;
 
-        int teste;
-
         listaInvertida *lista = new listaInvertida();
-        // ler palavras
-        while(true){
+        // ler palavras 
+        while(!in.eof()){
             // ler palavra
             in >> palavra;
-            
-            // Modificamos para não ler a última palavra duas vezes
-            if(in.eof()){
-                break;
-            }
-            
+
             // pegar offset
             offset = in.tellg();
             
@@ -292,6 +323,7 @@ int main(int argc, char** argv) {
                 int *offsets = lista->busca(palavra,&quantidade);
                 // com vetor de offsets, recuperar as linhas que contem a palavra desejada
                 if (quantidade > 0) {
+                    printf("Quantidade: %d\n",quantidade);
                     FILE *f = fopen("biblia.txt","rt");
                     for (int i = 0; i < quantidade; i++)
                         imprimeLinha(offsets[i],f);
