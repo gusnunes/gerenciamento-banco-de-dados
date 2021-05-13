@@ -306,10 +306,8 @@ private:
 
 // programa principal
 int main(int argc, char** argv) {
-    printf("Tamanho: %d\n",strlen("ção"));
-    
     // abrir arquivo
-    ifstream in("biblia_teste.txt", ios::binary);
+    ifstream in("biblia.txt", ios::binary);
     if (!in.is_open()){
         printf("\n\n Nao consegui abrir arquivo biblia.txt. Sinto muito.\n\n\n\n");
     }
@@ -329,7 +327,7 @@ int main(int argc, char** argv) {
             removePontuacao(palavra);
             // desconsiderar palavras que sao marcadores do arquivo
             if (!((palavra[0] == '#') || (palavra[0] == '[') || ((palavra[0] >= '0') && (palavra[0] <= '9')))) {
-                printf("%d %s\n", offset,palavra); fflush(stdout); // debug :-)
+                //printf("%d %s\n", offset,palavra); fflush(stdout); // debug :-)
                 toLower(palavra);
                 lista->adiciona(palavra, offset);
                 contadorDePalavras++;
@@ -351,6 +349,7 @@ int main(int argc, char** argv) {
                 int *offsets = lista->busca(palavra,&quantidade);
                 // com vetor de offsets, recuperar as linhas que contem a palavra desejada
                 if (quantidade > 0) {
+                    //printf("Quantidade: %d",quantidade);
                     FILE *f = fopen("biblia.txt","rt");
                     for (int i = 0; i < quantidade; i++)
                         imprimeLinha(offsets[i],f);
