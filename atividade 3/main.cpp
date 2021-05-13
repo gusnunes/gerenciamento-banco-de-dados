@@ -142,7 +142,7 @@ public:
         // Tamanho inicial do buffer para armazenar os offsets
         // Caso precise de mais, faz realloc
         tamanho = 1000;
-        int *offsets = (int *)malloc(tamanho * sizeof(int));
+        int *offsets = (int *) malloc(tamanho * sizeof(int));
 
         pos_lista = posicao * sizeof(primary_key);
         fseek(fd,pos_lista,SEEK_SET);
@@ -160,7 +160,7 @@ public:
             // Dobra o tamanho do buffer
             if(contador == tamanho-1){
                 tamanho += 1000;
-                offsets = (int *) realloc(offsets,tamanho*sizeof(tamanho));
+                offsets = (int *) realloc(offsets,tamanho*sizeof(int));
             }
 
             // Move para a próxima posição da palavra na lista invertida
