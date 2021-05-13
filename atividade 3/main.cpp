@@ -218,10 +218,10 @@ int main(int argc, char** argv) {
         do {
             printf("\nDigite a palavra desejada ou \"SAIR\" para sair: ");
             scanf("%s",palavra);
-            //toLower(palavra);   PENSAR SE PRECISA COLOCAR ESSA FUNCAO AQUI MESMO
             if (strcmp(palavra,"SAIR") != 0) {
                 int quantidade;
                 // busca na lista invertida
+                toLower(palavra);
                 int *offsets = lista->busca(palavra,&quantidade);
                 // com vetor de offsets, recuperar as linhas que contem a palavra desejada
                 if (quantidade > 0) {
