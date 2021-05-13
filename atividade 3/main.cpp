@@ -144,6 +144,7 @@ public:
         tamanho = 1000;
         int *offsets = (int *) malloc(tamanho * sizeof(int));
 
+        // Move para a primeira posição da palavra na lista invertida
         pos_lista = posicao * sizeof(primary_key);
         fseek(fd,pos_lista,SEEK_SET);
     
