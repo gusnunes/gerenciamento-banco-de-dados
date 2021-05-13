@@ -11,6 +11,19 @@ Matheus Henrique Ferreira Protásio - 11521BCC020
 
 using namespace std;
 
+void inverte_vetor(int *vetor, int tamanho){
+    int aux, indice_limite;
+
+    indice_limite = tamanho/2;
+    for(int i=0; i<indice_limite; i++){
+        aux = vetor[i];
+        vetor[i] = vetor[tamanho-1];
+        vetor[tamanho-1] = aux;
+        
+        tamanho--;
+    }
+}
+
 // palavra fica com todos caracteres minusculos
 void toLower(char str[]){
     for(int i=0; str[i]!='\0'; i++){
@@ -33,6 +46,11 @@ void removePontuacao (char *palavra) {
 
 // imprime linha do arquivo com base no offset da palavra
 void imprimeLinha(int offset,FILE *f) {
+    // a ultima palavra do arquivo fica com um offset a mais: -1
+    if(offset == -1){
+        return;
+    }
+
     int pos = ftell(f);
     char linha[2048];
     while (pos < offset) {
@@ -242,6 +260,7 @@ public:
             posicao = no->posicao;
         }
         else {
+            *quantidade = 0;
             return NULL;
         }
     
@@ -265,6 +284,8 @@ public:
         }
 
         *quantidade = contador;
+
+        inverte_vetor(offsets,contador);
         return offsets;
     }
 private:
@@ -292,16 +313,13 @@ int main(int argc, char** argv) {
         while(!in.eof()){
             // ler palavra
             in >> palavra;
-
             // pegar offset
             offset = in.tellg();
-            
             // remover pontuacao
             removePontuacao(palavra);
-            
             // desconsiderar palavras que sao marcadores do arquivo
             if (!((palavra[0] == '#') || (palavra[0] == '[') || ((palavra[0] >= '0') && (palavra[0] <= '9')))) {
-                //printf("%d %s\n", offset,palavra); fflush(stdout); // debug :-)
+                printf("%d %s\n", offset,palavra); fflush(stdout); // debug :-)
                 toLower(palavra);
                 lista->adiciona(palavra, offset);
                 contadorDePalavras++;
@@ -310,7 +328,7 @@ int main(int argc, char** argv) {
         }
 
         in.close();
-        lista->imprime_lista_indices_secundarios();
+        //lista->imprime_lista_indices_secundarios();
         
         // agora que ja construimos o indice, podemos realizar buscas
         do {
@@ -323,14 +341,16 @@ int main(int argc, char** argv) {
                 int *offsets = lista->busca(palavra,&quantidade);
                 // com vetor de offsets, recuperar as linhas que contem a palavra desejada
                 if (quantidade > 0) {
-                    printf("Quantidade: %d\n",quantidade);
                     FILE *f = fopen("biblia.txt","rt");
                     for (int i = 0; i < quantidade; i++)
                         imprimeLinha(offsets[i],f);
                     fclose(f);
                 }
-                else
+                else {
                     printf("nao encontrou %s\n",palavra);
+                }
+                
+                free(offsets); // desaloca a memória que guarda os offsets
             }
         } while (strcmp(palavra,"SAIR") != 0);
 
