@@ -9,6 +9,7 @@ Matheus Henrique Ferreira Protásio - 11521BCC020
 #include <string.h>
 #include <fstream>
 
+#include <map> // Implementa uma árvore AVL
 using namespace std;
 
 void inverte_vetor(int *vetor, int tamanho){
@@ -63,21 +64,7 @@ void imprimeLinha(int offset,FILE *f) {
 // classe que implementa a lista invertida
 class listaInvertida {
 public:
-    // Nó que representa um índice secundário
-    struct no {
-        char *palavra;
-        int posicao; // posicao da palavra na lista invertida
-
-        struct no *prox;
-    } typedef No;
-
-    // Ponteiro para o primeiro nó da lista de índices secundários
-    struct lista {
-        struct no *head;
-        int indice; // controla a posição que a palavra deve ser inserida na lista invertida
-    } typedef Lista;
-
-    // Registros da lista invertida que ficarão salvos no disco
+    // Registro da lista invertida que ficará salvo no disco
     struct primary_key {
         int primeira_pos; // primeira posição da palavra
         int offset; // offset da palavra
@@ -87,108 +74,11 @@ public:
     // construtor
     listaInvertida() {
         fd = fopen("lista_invertida.dat", "wb+");
-        indices_secundarios = cria_indices_secundarios();
     }
     
     // destrutor
     ~listaInvertida() {
         fclose(fd);
-    }
-
-    // TUDO AQUI É DO TAD DE INDICES SECUNDARIOS
-    // SALVO NA MEMORIA, DEPOIS TENTAR COLOCAR ISSO EM UM ARQUIVO .H SEPARADO
-    // PRA MELHOR ENTENDIMENTO DAS FUNÇÕES
-
-    void imprime_lista_indices_secundarios(){
-        No *aux;
-
-        if(indices_secundarios->head == NULL)
-            printf("Lista vazia\n");
-
-        printf("\n");
-        
-        for(aux=indices_secundarios->head; aux!=NULL; aux=aux->prox){
-            printf("Palavra: %s\n", aux->palavra);
-            printf("\n");
-        }
-    } 
-
-    // Cria lista de índices secundários (armazena na memória)
-    Lista* cria_indices_secundarios(){
-        Lista* lista = (Lista*) malloc(sizeof(Lista));
-
-        if(lista == NULL){
-            printf("Erro ao criar a lista de indices secundarios.\n");
-            return NULL;
-        }
-
-        lista->head = NULL;
-        lista->indice = 0;
-
-        return lista;
-    }
-
-    // Insere um indice secundário na lista de indices secundarios
-    No* insere_indice_secundario(char *palavra){
-        int resultado;
-
-        // Verifica se a lista de indices secundários existe
-        if(indices_secundarios == NULL){
-            printf("Erro! A lista de indices secundarios nao existe.\n");
-            return NULL;
-        }
-        else {
-            // Cria novo nó da lista
-            No *no = (No*) malloc(sizeof(No));
-
-            // Não há elementos na lista
-            if(indices_secundarios->head == NULL){
-                indices_secundarios->head = no;
-                no->prox = NULL;
-            } 
-            else { // Já existem elementos na lista
-                No *aux, *ant;
-                aux = indices_secundarios->head;
-
-                // Encontra a posicao correta para inserir a palavra
-                while(aux != NULL){
-                    resultado = strcmp(palavra,aux->palavra);
-                    
-                    //palavra que vai ser inserida é menor (ordem alfabetica)
-                    if(resultado < 0){
-                        break;
-                    }
-
-                    // palavra já existe na lista de índices secundários
-                    if(resultado == 0){
-                        free(no); // Esse nó não será inserido na lista
-                        return aux;
-                    }
-
-                    ant = aux; 
-                    aux = aux->prox; 
-                }
-
-                // insere na primeira posicao
-                if(aux == indices_secundarios->head){
-                    no->prox = aux;
-                    indices_secundarios->head = no;
-                }
-                else {
-                    no->prox = aux;
-                    ant->prox = no;
-                }
-            }
-
-            // Palavra ainda não existe na lista de indices secundarios
-            // Armazena informações (palavra e posição) no novo nó
-            no->palavra = (char *) malloc(strlen(palavra) * sizeof(char) + 1);
-            strcpy(no->palavra, palavra);
-            no->posicao = indices_secundarios->indice;
-            indices_secundarios->indice++;
-            
-            return no;
-        }
     }
 
     void insere_lista_invertida(struct primary_key registro){
@@ -202,70 +92,55 @@ public:
 
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
-        int indice_anterior;
-        indice_anterior = indices_secundarios->indice;
+        int indice;
 
-        // Adiciona palavra na lista de índices secundários
-        No* resultado;
-        resultado = insere_indice_secundario(palavra);
+        // Posição que palavra terá na lista invertida
+        fseek(fd, 0, SEEK_END);
+        indice = ftell(fd)/sizeof(primary_key); // posição no final do arquivo
 
-        // A palavra JÁ existia na lista de índices secundários
-        if(indice_anterior == indices_secundarios->indice){
-            primary_key.primeira_pos = indices_secundarios->indice;
+        // Tenta inserir a palavra nos índices secundários
+        std::pair<std::map<string,int>::iterator,bool> resultado;
+        resultado = indices_secundarios.insert(std::make_pair(palavra,indice));
+        
+        // Palavra JÁ estava presente nos índices secundários
+        if(resultado.second == false) {
+            primary_key.primeira_pos = indice;
             primary_key.offset = offset;
-            primary_key.pos_prox_offset = resultado->posicao; 
 
-            resultado->posicao = indices_secundarios->indice;
-            indices_secundarios->indice++; // atualiza o indice da lista
+            // Organiza as posições da palavra na lista invertida
+            primary_key.pos_prox_offset = resultado.first->second; // A primeira posição agora será a segunda
+            indices_secundarios[palavra] = indice; // Atualiza a nova primeira posição
         }
-        else { // Palavra ainda NÃO estava na lista de índices secundários
-            primary_key.primeira_pos = resultado->posicao;
+        else { // Palavra ainda NÃO estava presente nos índices secundários
+            primary_key.primeira_pos = indice;
             primary_key.offset = offset;
             primary_key.pos_prox_offset = -1; // a última posição sempre aponta para -1
         }
 
-        // Adiciona offset da palavra na lista invertida
+        // Adiciona o registro na lista invertida
         insere_lista_invertida(primary_key);
     }
 
     // realiza busca, retornando vetor de offsets que referenciam a palavra
     int * busca(char *palavra, int *quantidade) {
-        int resultado, posicao, pos_lista;
-        int tamanho, contador=0;
-        No *no;
+        int posicao, tamanho;
+        int pos_lista, contador=0;
 
-        if(indices_secundarios == NULL){
-            printf("Erro! A lista de indices secundarios nao existe.\n");
-            return NULL;
-        }
-        else {
-            No *aux = indices_secundarios->head;
-            no = aux;
-            // Percorre a lista de índices secundários para achar a palavra
-            while(aux != NULL){
-                resultado = strcmp(palavra,aux->palavra);
-                
-                // Palavra está na lista
-                if(resultado == 0){
-                    break;
-                }
+        // Procura a palavra nos índices secundários
+        std::map<string,int>::iterator resultado;
+        resultado = indices_secundarios.find(palavra);
 
-                aux = aux->prox;
-                no = aux;
-            }
-        }
-
-        // Achou a palavra, pega a primeira posição dela na lista invertida
-        if(no != NULL){
-            posicao = no->posicao;
-        }
-        else {
+        // NÃO achou a palavra
+        if(resultado == indices_secundarios.end()){
             *quantidade = 0;
             return NULL;
         }
-    
-        // tamanho inicial do buffer para armazenar os offsets
-        // caso precise de mais, faz realloc
+        
+        // ACHOU a palavra    
+        posicao = resultado->second;
+            
+        // Tamanho inicial do buffer para armazenar os offsets
+        // Caso precise de mais, faz realloc
         tamanho = 1000;
         int *offsets = (int *)malloc(tamanho * sizeof(int));
 
@@ -277,6 +152,7 @@ public:
             offsets[contador] = primary_key.offset;
             contador++;
 
+            // Chegou no fim da lista invertida para aquela palavra
             if(primary_key.pos_prox_offset == -1){
                 break;
             }
@@ -287,6 +163,7 @@ public:
                 offsets = (int *) realloc(offsets,tamanho*sizeof(tamanho));
             }
 
+            // Move para a próxima posição da palavra na lista invertida
             pos_lista = primary_key.pos_prox_offset * sizeof(primary_key);
             fseek(fd,pos_lista,SEEK_SET);
         }
@@ -300,8 +177,8 @@ private:
     // descritor do arquivo é privado, apenas métodos da classe podem acessa-lo
     FILE *fd;
 
-    // ponteiro para Lista de índices secundários
-    Lista* indices_secundarios;
+    // Conjunto dos índices secundários
+    std::map<string,int> indices_secundarios;
 };
 
 // programa principal
@@ -336,7 +213,6 @@ int main(int argc, char** argv) {
         }
 
         in.close();
-        //lista->imprime_lista_indices_secundarios();
         
         // agora que ja construimos o indice, podemos realizar buscas
         do {
@@ -349,7 +225,7 @@ int main(int argc, char** argv) {
                 int *offsets = lista->busca(palavra,&quantidade);
                 // com vetor de offsets, recuperar as linhas que contem a palavra desejada
                 if (quantidade > 0) {
-                    //printf("Quantidade: %d",quantidade);
+                    printf("Quantidade: %d\n",quantidade);
                     FILE *f = fopen("biblia.txt","rt");
                     for (int i = 0; i < quantidade; i++)
                         imprimeLinha(offsets[i],f);
