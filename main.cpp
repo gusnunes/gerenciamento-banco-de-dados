@@ -231,7 +231,7 @@ public:
     // realiza busca, retornando vetor de offsets que referenciam a palavra
     int * busca(char *palavra, int *quantidade) {
         int resultado, posicao, pos_lista;
-        int qtd_inicial, contador=0;
+        int tamanho, contador=0;
         No *no;
 
         if(indices_secundarios == NULL){
@@ -264,8 +264,10 @@ public:
             return NULL;
         }
     
-        qtd_inicial = 20; // valor inicial, caso precise mais, faz realloc
-        int *offsets = (int *)malloc(qtd_inicial * sizeof(int));
+        // tamanho inicial do buffer para armazenar os offsets
+        // caso precise de mais, faz realloc
+        tamanho = 1000;
+        int *offsets = (int *)malloc(tamanho * sizeof(int));
 
         pos_lista = posicao * sizeof(primary_key);
         fseek(fd,pos_lista,SEEK_SET);
@@ -277,6 +279,12 @@ public:
 
             if(primary_key.pos_prox_offset == -1){
                 break;
+            }
+
+            // Dobra o tamanho do buffer
+            if(contador == tamanho-1){
+                tamanho += 1000;
+                offsets = (int *) realloc(offsets,tamanho*sizeof(tamanho));
             }
 
             pos_lista = primary_key.pos_prox_offset * sizeof(primary_key);
@@ -298,6 +306,8 @@ private:
 
 // programa principal
 int main(int argc, char** argv) {
+    printf("Tamanho: %d\n",strlen("ção"));
+    
     // abrir arquivo
     ifstream in("biblia_teste.txt", ios::binary);
     if (!in.is_open()){
