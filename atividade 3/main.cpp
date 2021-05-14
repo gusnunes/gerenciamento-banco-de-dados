@@ -81,22 +81,12 @@ public:
         fclose(fd);
     }
 
-    void insere_lista_invertida(struct primary_key registro){
-        // Posicao da palavra no ARQUIVO da lista invertida
-        int pos_lista;
-        pos_lista = registro.primeira_pos * sizeof(primary_key);
-
-        fseek(fd,pos_lista,SEEK_SET); // Move o ponteiro do arquivo para a posição
-        fwrite(&registro,sizeof(primary_key),1,fd); // Escreve o registro no arquivo
-    }
-
     // adiciona palavra na estrutura
     void adiciona(char *palavra, int offset) {
         int indice;
-
+        
         // Posição que palavra terá na lista invertida
-        fseek(fd, 0, SEEK_END);
-        indice = ftell(fd)/sizeof(primary_key); // posição no final do arquivo
+        indice = ftell(fd)/sizeof(primary_key);
 
         // Tenta inserir a palavra nos índices secundários
         std::pair<std::map<string,int>::iterator,bool> resultado;
@@ -117,8 +107,9 @@ public:
             primary_key.pos_prox_offset = -1; // a última posição sempre aponta para -1
         }
 
-        // Adiciona o registro na lista invertida
-        insere_lista_invertida(primary_key);
+        // Adiciona o registro no ARQUIVO da lista invertida
+        // Posição é sempre no final do arquivo
+        fwrite(&primary_key,sizeof(primary_key),1,fd);
     }
 
     // realiza busca, retornando vetor de offsets que referenciam a palavra
@@ -153,7 +144,7 @@ public:
             offsets[contador] = primary_key.offset;
             contador++;
 
-            // Chegou no fim da lista invertida para aquela palavra
+            // Chegou no fim da lista invertida para aquele registro
             if(primary_key.pos_prox_offset == -1){
                 break;
             }
